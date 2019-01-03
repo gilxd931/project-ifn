@@ -2,7 +2,7 @@
 This is a module to be used as a reference for building other modules
 """
 import numpy as np
-from ._ifn_network import IfnNetwork, AttributeNode
+from ._ifn_network import IfnNetwork, AttributeNode, Attribute_layer
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn import metrics
 from sklearn.utils.multiclass import unique_labels
@@ -22,7 +22,7 @@ class IfnClassifier():
     """
     def __init__(self, alpha = 0.99):
         self.alpha = alpha
-        network = IfnNetwork()
+        self.network = IfnNetwork()
         # network.add_root(3)
         # network.print_root()
         # a = AttributeNode(0)
@@ -72,15 +72,21 @@ class IfnClassifier():
             max_MI.append(metrics.adjusted_mutual_info_score(attribute_data, y))
 
 
-        i=0
-        temp_max_MI=0;
+        i = 0
+        temp_max_MI = 0;
         for row in max_MI:
-            if(row>temp_max_MI):
-                temp_max_MI=row
-                chosen_attribute=i
-            i=i+1
+            if(row > temp_max_MI):
+                temp_max_MI = row
+                chosen_attribute = i
+            i+=1
 
-        print(chosen_attribute)
+        layer = Attribute_layer(chosen_attribute)
+        layer.set_nodes([AttributeNode(0), AttributeNode(1)])
+
+        self.network.root_node.set_layer(layer)
+
+        self.network.print_classes()
+
         self.is_fitted_ = True
 
         # `fit` should always return `self`

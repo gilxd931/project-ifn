@@ -64,7 +64,10 @@ class IfnClassifier():
         max_MI = 0
         chosen_attribute =-1
         for attribute in attributes_array:
-            # compute MI
+            attribute_data = []
+            for record in X:
+                attribute_data.append(record[attribute])
+            #mutual_info_score()
 
 
 

@@ -1,15 +1,24 @@
 
 from skltemplate import IfnClassifier
-from sklearn.datasets import load_iris
+from sklearn.datasets import load_boston
 import pandas as pd
+from sklearn.metrics import mutual_info_score
 
-dt= pd.read_csv("test_dataset_1.csv", encoding='latin1')
 
-print (dt)
-iris = load_iris()
+# clf = IfnClassifier()
 
-x = [[1,1,0], [0,1,1], [1,0,1], [0,1,0] ]
-y= [1, 0 , 0, 1]
+
+x = [[0,0,0,1], [0,1,0,1], [1,1,0,0], [1,0,0,1], [0,0,0,0], [0,1,0,1]]
+y = [0,1,1,0,1,0]
+
 clf = IfnClassifier()
+
 clf.fit(x, y)
-x=3
+
+
+
+# x= [[ 0,0,0,1], []]
+#
+# # x = [[1,1,0], [0,1,1], [1,       [0,1,0] ]
+# # y= [1, 0 , 0, 1]          
+# # x=3

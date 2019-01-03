@@ -2,6 +2,7 @@
 This is a module to be used as a reference for building other modules
 """
 import numpy as np
+import operator
 from ._ifn_network import IfnNetwork, AttributeNode, Attribute_layer
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn import metrics
@@ -10,6 +11,8 @@ from sklearn.metrics import euclidean_distances
 from sklearn.metrics import mutual_info_score
 
 class IfnClassifier():
+    attributes_array=[]
+    update_attributes_array=[]
     """ A template estimator to be used as a reference implementation.
 
     For more information regarding how to build your own estimator, read more
@@ -60,30 +63,40 @@ class IfnClassifier():
                 raise ValueError("Found array y that is not binary")
 
         # create list of all attributes
-        attributes_array = list(range(0, len(X[0])))
+        self.attributes_array = list(range(0, len(X[0])))
+        self.update_attributes_array=self.attributes_array;
 
-        max_MI =[]
+        max_MI ={}
 
-        chosen_attribute =-1
-        for attribute in attributes_array:
+        for attribute in self.attributes_array:
             attribute_data = []
             for record in X:
                 attribute_data.append(record[attribute])
-            max_MI.append(metrics.adjusted_mutual_info_score(attribute_data, y))
+            max_MI[attribute]=metrics.adjusted_mutual_info_score(attribute_data, y)
 
 
-        i = 0
-        temp_max_MI = 0;
-        for row in max_MI:
-            if(row > temp_max_MI):
-                temp_max_MI = row
-                chosen_attribute = i
-            i+=1
+        chosen_attribute =max(max_MI, key=max_MI.get)
+        self.update_attributes_array.remove(chosen_attribute)
+
 
         layer = Attribute_layer(chosen_attribute)
         layer.set_nodes([AttributeNode(0), AttributeNode(1)])
 
         self.network.root_node.set_layer(layer)
+        currentLayer =self.network.root_node.first_layer;
+        for i in list(range(0,len(self.attributes_array))):
+            arrayOfMI=[]
+            for node in currentLayer.nodes:
+                arrayOfMI.append(self.calIMPerNode(X,y))
+            nextIndexLayer=self.getNextLayer(arrayOfMI)
+            self.update_attributes_array.remove(nextIndexLayer)
+            for node in currentLayer.nodes:
+                node.next.append([AttributeNode(0), AttributeNode(1)])
+            print(nextIndexLayer)
+            layer = Attribute_layer(nextIndexLayer)
+            layer=self.setNodes(len(currentLayer.nodes),layer)
+            currentLayer.next_layer=layer
+            currentLayer=layer
 
         self.network.print_classes()
 
@@ -91,6 +104,37 @@ class IfnClassifier():
 
         # `fit` should always return `self`
         return self
+
+    def setNodes(self,numNode,layer):
+        for i in list(range(0,numNode)):
+            layer.set_nodes([AttributeNode(0), AttributeNode(1)])
+        return layer
+
+
+    def getAttribute(self):
+        tempDic = {}
+        for row in self.update_attributes_array:
+            tempDic[row] = 0
+        return tempDic
+
+    def getNextLayer(self,arrayOfMI):
+        tempDic=self.getAttribute()
+        for dic in arrayOfMI:
+            for key,value in dic.items():
+                tempDic[key]=tempDic[key]+value
+        return max(tempDic, key=tempDic.get)
+
+    def calIMPerNode(self,X,y):
+        max_MI = {}
+
+        for attribute in self.update_attributes_array:
+            attribute_data = []
+            for record in X:
+                attribute_data.append(record[attribute])
+            max_MI[attribute] = metrics.adjusted_mutual_info_score(attribute_data, y)
+        return max_MI
+
+
 
     def predict(self, X):
         """ A reference implementation of a predicting function.

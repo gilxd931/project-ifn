@@ -4,6 +4,7 @@ This is a module to be used as a reference for building other modules
 import numpy as np
 from ._ifn_network import IfnNetwork, AttributeNode
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
+from sklearn import metrics
 from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics import euclidean_distances
 from sklearn.metrics import mutual_info_score
@@ -61,18 +62,25 @@ class IfnClassifier():
         # create list of all attributes
         attributes_array = list(range(0, len(X[0])))
 
-        max_MI = 0
+        max_MI =[]
+
         chosen_attribute =-1
         for attribute in attributes_array:
             attribute_data = []
             for record in X:
                 attribute_data.append(record[attribute])
-            #mutual_info_score()
+            max_MI.append(metrics.adjusted_mutual_info_score(attribute_data, y))
 
 
+        i=0
+        temp_max_MI=0;
+        for row in max_MI:
+            if(row>temp_max_MI):
+                temp_max_MI=row
+                chosen_attribute=i
+            i=i+1
 
-
-        print(attributes_array)
+        print(chosen_attribute)
         self.is_fitted_ = True
 
         # `fit` should always return `self`

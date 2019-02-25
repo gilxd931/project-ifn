@@ -1,7 +1,7 @@
 
 class Node:
     def __init__(self, index):
-        self.index = index
+        self.index = indexz
 
 
 class RootNode(Node):

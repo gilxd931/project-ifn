@@ -92,13 +92,11 @@ class IfnClassifier():
             self.update_attributes_array.remove(nextIndexLayer)
             for node in currentLayer.nodes:
                 node.next.append([AttributeNode(0), AttributeNode(1)])
-            print(nextIndexLayer)
+            print('Layer number: ' + str(i) + '.  attribute number: ' + str(nextIndexLayer))
             layer = Attribute_layer(nextIndexLayer)
             layer=self.setNodes(len(currentLayer.nodes),layer)
             currentLayer.next_layer=layer
             currentLayer=layer
-
-        self.network.print_classes()
 
         self.is_fitted_ = True
 
@@ -106,7 +104,7 @@ class IfnClassifier():
         return self
 
     def setNodes(self,numNode,layer):
-        for i in list(range(0,numNode)):
+        for i in list(range(0, numNode)):
             layer.set_nodes([AttributeNode(0), AttributeNode(1)])
         return layer
 

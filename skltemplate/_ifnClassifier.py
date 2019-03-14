@@ -2,13 +2,17 @@
 This is a module to be used as a reference for building other modules
 """
 import numpy as np
+import random
 import operator
-from ._ifn_network import IfnNetwork, AttributeNode, Attribute_layer
+from ._ifn_network import IfnNetwork, AttributeNode, HiddenLayer
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn import metrics
 from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics import euclidean_distances
-from sklearn.metrics import mutual_info_score
+from pyitlib import discrete_random_variable as drv
+
+
+from scipy import stats
 
 class IfnClassifier():
     attributes_array=[]
@@ -26,16 +30,6 @@ class IfnClassifier():
     def __init__(self, alpha = 0.99):
         self.alpha = alpha
         self.network = IfnNetwork()
-        # network.add_root(3)
-        # network.print_root()
-        # a = AttributeNode(0)
-        # a.add_next(2)
-        # a.add_next(1)
-        # a.add_next(3)
-        # a.add_next(4)
-        # a.add_next(4)
-        # a.add_next(4)
-        # a.print_next()
 
     def fit(self, X, y):
         """A reference implementation of a fitting function.
@@ -55,82 +49,116 @@ class IfnClassifier():
         """
         X, y = check_X_y(X, y, accept_sparse=True)
 
-        if not np.array_equal(y, y.astype(bool)):
-            raise ValueError("Found array y that is not binary")
+        total_records = len(y)
+        unique, counts = np.unique(np.array(y), return_counts=True)
+        class_count = np.asarray((unique, counts)).T
 
-        for row in X:
-            if not np.array_equal(row, row.astype(bool)):
-                raise ValueError("Found array y that is not binary")
 
         # create list of all attributes
-        self.attributes_array = list(range(0, len(X[0])))
-        self.update_attributes_array=self.attributes_array;
+        updated_attributes_array = list(range(0, len(X[0])))
 
-        max_MI ={}
+        self.network.build_target_layer(np.unique(y))
 
-        for attribute in self.attributes_array:
+        attributes_mi = {}
+        unique_values_per_attribute = {}
+
+        # get the attribute that holds the maximal mutual information
+        for attribute in updated_attributes_array:
             attribute_data = []
             for record in X:
                 attribute_data.append(record[attribute])
-            max_MI[attribute]=metrics.adjusted_mutual_info_score(attribute_data, y)
+            unique_values_per_attribute[attribute] = np.unique(attribute_data)
+            attributes_mi[attribute] = metrics.mutual_info_score(attribute_data, y)
 
+        chosen_attribute = max(attributes_mi, key=attributes_mi.get)
+        attributes_mi = {}
+        updated_attributes_array.remove(chosen_attribute)
 
-        chosen_attribute =max(max_MI, key=max_MI.get)
-        self.update_attributes_array.remove(chosen_attribute)
+        # create new hidden layer of the maximal mutual information attribute and set the layer nodes
+        first_layer = HiddenLayer(chosen_attribute)
+        self.network.root_node.first_layer = first_layer
+        nodes_list = []
+        for i in unique_values_per_attribute[chosen_attribute]:
+            nodes_list.append(AttributeNode(i, chosen_attribute))
+        first_layer.set_nodes(nodes_list)
+        current_layer = first_layer
 
+        print('nodes for layer ' + str(current_layer.index) + ' are: ')
+        first_layer.print()
 
-        layer = Attribute_layer(chosen_attribute)
-        layer.set_nodes([AttributeNode(0), AttributeNode(1)])
+        while len(updated_attributes_array) > 0:
+            # get the attribute that holds the maximal mutual information
+            nodes_info_per_attribute = {}
+            for attribute in updated_attributes_array:
+                attribute_data = []
+                for record in X:
+                    attribute_data.append(record[attribute])
+                unique_values_per_attribute[attribute] = np.unique(attribute_data)
+                total_attribute_mi = 0
+                nodes_info_list = []
+                for node in current_layer.nodes:
+                    node_mi = random.uniform(0, 1)#calc_node_MI()
+                    total_attribute_mi += node_mi
+                    statistic = 2 * np.log(2) * total_records * node_mi
+                    critical = stats.chi2.ppf(self.alpha, 1)
+                    if critical < statistic:
+                        nodes_info_list.append((node.index, node_mi, True)) # True means split
+                    else:
+                        nodes_info_list.append((node.index, node_mi, False))
 
-        self.network.root_node.set_layer(layer)
-        currentLayer =self.network.root_node.first_layer;
-        for i in list(range(0,len(self.attributes_array))):
-            arrayOfMI=[]
-            for node in currentLayer.nodes:
-                arrayOfMI.append(self.calIMPerNode(X,y))
-            nextIndexLayer=self.getNextLayer(arrayOfMI)
-            self.update_attributes_array.remove(nextIndexLayer)
-            for node in currentLayer.nodes:
-                node.next.append([AttributeNode(0), AttributeNode(1)])
-            print('Layer number: ' + str(i) + '.  attribute number: ' + str(nextIndexLayer))
-            layer = Attribute_layer(nextIndexLayer)
-            layer=self.setNodes(len(currentLayer.nodes),layer)
-            currentLayer.next_layer=layer
-            currentLayer=layer
+                nodes_info_per_attribute[attribute] = nodes_info_list
+                nodes_info_list = []
+                attributes_mi[attribute] = total_attribute_mi
+            chosen_attribute = max(attributes_mi, key=attributes_mi.get)
 
-        self.is_fitted_ = True
+            # set terminal nodes
+            all_nodes_terminal = True
+            for node_tuple in nodes_info_per_attribute[chosen_attribute]:
+                if node_tuple[2] is False:
+                    all_nodes_terminal = False
+                    node = current_layer.get_node(node_tuple[0])
+                    if node is not None:
+                        node.set_terminal()
+                        # add weight
+
+            # stop building the network if all layer's nodes are terminal
+            if all_nodes_terminal:
+                break
+
+            attributes_mi = {}
+            updated_attributes_array.remove(chosen_attribute)
+            new_layer = HiddenLayer(chosen_attribute)
+            current_layer.next_layer = new_layer
+            current_layer = new_layer
+            nodes_list = []
+            for i in unique_values_per_attribute[chosen_attribute]:
+                nodes_list.append(AttributeNode(i, chosen_attribute))
+            current_layer.set_nodes(nodes_list)
+
+            print('nodes for layer ' + str(current_layer.index) + ' are: ')
+            current_layer.print()
+
+        # that means we used all of the attributes so we have to set the last layer's nodes to be terminal
+        if len(updated_attributes_array) == 0:
+            for node in current_layer.nodes:
+                node.set_terminal()
+                node.print_info()
+                # set node weight
+
 
         # `fit` should always return `self`
         return self
 
-    def setNodes(self,numNode,layer):
-        for i in list(range(0, numNode)):
-            layer.set_nodes([AttributeNode(0), AttributeNode(1)])
-        return layer
-
-
-    def getAttribute(self):
-        tempDic = {}
-        for row in self.update_attributes_array:
-            tempDic[row] = 0
-        return tempDic
-
-    def getNextLayer(self,arrayOfMI):
-        tempDic=self.getAttribute()
-        for dic in arrayOfMI:
-            for key,value in dic.items():
-                tempDic[key]=tempDic[key]+value
-        return max(tempDic, key=tempDic.get)
 
     def calIMPerNode(self,X,y):
-        max_MI = {}
+        attributes_mi = {}
 
-        for attribute in self.update_attributes_array:
+        for attribute in self.updated_attributes_array:
             attribute_data = []
             for record in X:
                 attribute_data.append(record[attribute])
-            max_MI[attribute] = metrics.adjusted_mutual_info_score(attribute_data, y)
-        return max_MI
+            attributes_mi[attribute] = metrics.adjusted_mutual_info_score(attribute_data, y)
+        return attributes_mi
 
 
 

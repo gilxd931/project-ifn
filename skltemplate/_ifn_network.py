@@ -1,13 +1,17 @@
+import math
 
 class Node:
     def __init__(self, index):
-        self.index = indexz
+        self.index = index
+
+    def print_index(self):
+        print(self.index)
 
 
 class RootNode(Node):
     def __init__(self):
         super().__init__(-1)
-        self.first_layer = Attribute_layer(None)
+        self.first_layer = None
 
     def set_layer(self, layer):
         self.first_layer = layer
@@ -19,29 +23,28 @@ class ClassNode(Node):
 
 
 class AttributeNode(Node):
-    def __init__(self, index, is_terminal=False):
+    def __init__(self, index, layer, is_terminal=False):
         super().__init__(index)
+        self.layer = layer
         self.is_terminal = is_terminal
-        self.next = []
+        self.weight = math.inf
 
-    def add_next(self, next_index):
-        exist = False
-        for node in self.next:
-            if next_index == node.index:
-                exist = True
+    def set_terminal(self):
+        self.is_terminal = True
 
-        if not exist:
-            self.next.append(AttributeNode(next_index))
+    def set_weight(self, weight):
+        if self.is_terminal:
+            self.weight = weight
 
-    def print_index(self):
-        print(self.index)
-
-    def print_next(self):
-        for node in self.next:
-            print(node.index)
+    def print_info(self):
+        print('')
+        print('terminal: ' + str(self.is_terminal))
+        print('weight: ' + str(self.weight))
+        print('index: ' + str(self.index))
+        print('------------------------')
 
 
-class Attribute_layer:
+class HiddenLayer:
     def __init__(self, index):
         self.index = index
         self.next_layer = None
@@ -50,17 +53,30 @@ class Attribute_layer:
     def set_nodes(self, nodes):
         self.nodes = nodes
 
+    def print(self):
+        for node in self.nodes:
+            node.print_index()
+
+    def get_node(self, index):
+        for node in self.nodes:
+            if node.index == index:
+                return node
+        return None
 
 class IfnNetwork:
     def __init__(self):
-        self.classes = None
-        self.root_node = RootNode()
+        self.target_layer = []
+        self.root_node = RootNode
+
+    def build_target_layer(self, num_of_classes):
+        if len(num_of_classes) != 0:
+            for i in num_of_classes:
+                self.target_layer.append(ClassNode(i))
 
     def print_classes(self):
-        print(self.root_node.first_layer.nodes)
+        for node in self.target_layer:
+            node.print_index()
 
-    def build_classes(self):
-        if self.classes is None:
-            self.classes = [ClassNode(0), ClassNode(1)]
+
 
 

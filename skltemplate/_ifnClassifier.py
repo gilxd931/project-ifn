@@ -84,7 +84,6 @@ class IfnClassifier():
             attributes_mi[attribute] = metrics.mutual_info_score(attribute_data, y)
 
         chosen_attribute = max(attributes_mi, key=attributes_mi.get)
-        attributes_mi = {}
         updated_attributes_array.remove(chosen_attribute)
 
         # create new hidden layer of the maximal mutual information attribute and set the layer nodes
@@ -104,67 +103,61 @@ class IfnClassifier():
             # get the attribute that holds the maximal mutual information
             nodes_info_per_attribute = {}
             for node in current_layer.nodes:
-                total_node_mi=0
+                total_node_mi = 0
                 for attribute in updated_attributes_array:
-                    if nodes_info_per_attribute[attribute] is None:
+                    if attribute not in nodes_info_per_attribute:
                         nodes_info_per_attribute[attribute] = []
                     attribute_data = []
                     for record in node.partial_x:
                         attribute_data.append(record[attribute])
-                    nodes_info_list = []
-                    total_attribute_mi = 0
                     unique_values_per_attribute[attribute] = np.unique(attribute_data)
                     node_mi = metrics.mutual_info_score(attribute_data, node.partial_y)
-                    total_node_mi+=node_mi
+                    total_node_mi += node_mi
                     statistic = 2 * np.log(2) * total_records * node_mi
                     critical = stats.chi2.ppf(self.alpha, 1)
-                    node_info_tuple = (node.index, node_mi, True)
                     if critical < statistic:
-                        node_info_tuple = (node.index, node_mi, True)
+                        node_info_tuple = (node.index, node_mi)
                     else:
-                        node_info_tuple = (node.index, 0, False)
+                        node_info_tuple = (node.index, 0)
 
-                    nodes_info_per_attribute[attribute] = nodes_info_per_attribute[attribute].append(nodes_info_list)
+                    nodes_info_per_attribute[attribute].append(node_info_tuple)
 
-            max_node_mi=0
-            index_atr=0
-            for key, value in nodes_info_per_attribute:
-                node_mi=0
-                for node_tuple in value:
-                    node_mi+=node_tuple[1]
-                    if max_node_mi < node_mi:
-                        max_node_mi = max(max_node_mi, node_mi)
-                        index_atr = key
+            max_node_mi = 0
+            chosen_index = -1
+            for attribute_index in nodes_info_per_attribute:
+                node_mi = 0
+                for node_info in nodes_info_per_attribute[attribute_index]:
+                    node_mi += node_info[1]
+                if node_mi > max_node_mi:
+                    max_node_mi = node_mi
+                    chosen_index = attribute_index
 
-
-
-
+            chosen_attribute = chosen_index
 
 
-            chosen_attribute = max(attributes_mi, key=attributes_mi.get)
+
+            # stop building the network if all layer's nodes are terminal
+            if chosen_attribute == -1:
+                break
 
             # set terminal nodes
-            all_nodes_terminal = True
             for node_tuple in nodes_info_per_attribute[chosen_attribute]:
-                if node_tuple[2] is False:
-                    all_nodes_terminal = False
+                if node_tuple[1] != 0:  # means chi2 test didnt pass
                     node = current_layer.get_node(node_tuple[0])
                     if node is not None:
                         node.set_terminal()
                         # add weight
 
-            # stop building the network if all layer's nodes are terminal
-            if all_nodes_terminal:
-                break
-
-            attributes_mi = {}
+            nodes_list = []
+            for i in unique_values_per_attribute[chosen_attribute]:
+                x_y_tuple = drop_records(current_layer.get_node(i).partial_x,
+                                         chosen_attribute, current_layer.get_node(i).partial_y, i)
+                nodes_list.append(AttributeNode(i, chosen_attribute, x_y_tuple[0], x_y_tuple[1]))
             updated_attributes_array.remove(chosen_attribute)
             new_layer = HiddenLayer(chosen_attribute)
             current_layer.next_layer = new_layer
             current_layer = new_layer
-            nodes_list = []
-            for i in unique_values_per_attribute[chosen_attribute]:
-                nodes_list.append(AttributeNode(i, chosen_attribute))
+
             current_layer.set_nodes(nodes_list)
 
             print('nodes for layer ' + str(current_layer.index) + ' are: ')

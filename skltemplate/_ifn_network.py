@@ -10,7 +10,7 @@ class Node:
 
 class RootNode(Node):
     def __init__(self):
-        super().__init__(-1)
+        super().__init__(0)
         self.first_layer = None
 
     def set_layer(self, layer):
@@ -23,11 +23,14 @@ class ClassNode(Node):
 
 
 class AttributeNode(Node):
-    def __init__(self, index, layer, is_terminal=False):
+    def __init__(self, index, prev_node, layer, partial_x, partial_y, is_terminal=False):
         super().__init__(index)
+        self.prev_node = prev_node
         self.layer = layer
         self.is_terminal = is_terminal
         self.weight = math.inf
+        self.partial_x = partial_x
+        self.partial_y = partial_y
 
     def set_terminal(self):
         self.is_terminal = True
@@ -62,6 +65,7 @@ class HiddenLayer:
             if node.index == index:
                 return node
         return None
+
 
 class IfnNetwork:
     def __init__(self):

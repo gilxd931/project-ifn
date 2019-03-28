@@ -2,27 +2,53 @@
 This is a module to be used as a reference for building other modules
 """
 import numpy as np
-import random
-import operator
 from ._ifn_network import IfnNetwork, AttributeNode, HiddenLayer
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from sklearn import metrics
-from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import euclidean_distances
-
-
-
 from scipy import stats
+import math
+import collections
 
 
-def drop_records(X, index_atr, y, index_node):
-    ans_x = []
-    ans_y = []
+def calc_MI(x, y, total_records):
+    partial_records = len(y)
+    unique, counts = np.unique(np.array(y), return_counts=True)
+    class_count = np.asarray((unique, counts)).T
+    unique, counts = np.unique(np.array(x), return_counts=True)
+    data_count = np.asarray((unique, counts)).T
+
+    data_dic = collections.defaultdict(int)
+
     for i in range(len(y)):
-        if X[i][index_atr] == index_node:
-            ans_x.append(X[i])
-            ans_y.append(y[i])
-    return np.array(ans_x), np.array(ans_y)
+        data_class_tuple = x[i], y[i]
+        data_dic[data_class_tuple] = data_dic[data_class_tuple] + 1
+
+    total_mi = 0
+    for key, value in data_dic.items():
+
+        curr_class_count = None
+        for c_count in class_count:
+            if c_count[0] == key[1]:
+                curr_class_count = c_count[1]
+
+        curr_data_count = None
+        for d_count in data_count:
+            if d_count[0] == key[0]:
+                curr_data_count = d_count[1]
+
+        mutual_information = (value / total_records) * math.log((value / partial_records) / ((curr_data_count / partial_records) *  (curr_class_count / partial_records)), 2)
+
+        total_mi += mutual_information
+    return total_mi
+
+
+def drop_records(X, atr_index, y, node_index):
+    new_x = []
+    new_y = []
+    for i in range(len(y)):
+        if X[i][atr_index] == node_index:
+            new_x.append(X[i])
+            new_y.append(y[i])
+    return np.array(new_x), np.array(new_y)
 
 
 
@@ -40,7 +66,7 @@ class IfnClassifier():
         A parameter used for demonstation of how to pass and store paramters.
     """
 
-    def __init__(self, alpha = 0.99):
+    def __init__(self, alpha = 0.999):
         self.alpha = alpha
         self.network = IfnNetwork()
 
@@ -70,18 +96,29 @@ class IfnClassifier():
         # create list of all attributes
         updated_attributes_array = list(range(0, len(X[0])))
 
+        num_of_classes = len(np.unique(y))
         self.network.build_target_layer(np.unique(y))
 
         attributes_mi = {}
         unique_values_per_attribute = {}
+        curr_node_index = 1
 
         # get the attribute that holds the maximal mutual information
         for attribute in updated_attributes_array:
             attribute_data = []
             for record in X:
                 attribute_data.append(record[attribute])
+
             unique_values_per_attribute[attribute] = np.unique(attribute_data)
-            attributes_mi[attribute] = metrics.mutual_info_score(attribute_data, y)
+            mutual_info_score = calc_MI(attribute_data, y, total_records)
+            statistic = 2 * np.log(2) * total_records * mutual_info_score
+            critical = stats.chi2.ppf(self.alpha, ((num_of_classes - 1) *
+                                                   ((len(unique_values_per_attribute[attribute])) - 1)
+                                                   ))
+            if critical < statistic:
+                attributes_mi[attribute] = mutual_info_score
+            else:
+                attributes_mi[attribute] = 0
 
         chosen_attribute = max(attributes_mi, key=attributes_mi.get)
         updated_attributes_array.remove(chosen_attribute)
@@ -92,7 +129,8 @@ class IfnClassifier():
         nodes_list = []
         for i in unique_values_per_attribute[chosen_attribute]:
             x_y_tuple = drop_records(X, chosen_attribute, y, i)
-            nodes_list.append(AttributeNode(i, chosen_attribute, x_y_tuple[0], x_y_tuple[1]))
+            nodes_list.append(AttributeNode(curr_node_index, 0, chosen_attribute, x_y_tuple[0], x_y_tuple[1]))
+            curr_node_index += 1
         first_layer.set_nodes(nodes_list)
         current_layer = first_layer
 
@@ -103,7 +141,6 @@ class IfnClassifier():
             # get the attribute that holds the maximal mutual information
             nodes_info_per_attribute = {}
             for node in current_layer.nodes:
-                total_node_mi = 0
                 for attribute in updated_attributes_array:
                     if attribute not in nodes_info_per_attribute:
                         nodes_info_per_attribute[attribute] = []
@@ -111,10 +148,11 @@ class IfnClassifier():
                     for record in node.partial_x:
                         attribute_data.append(record[attribute])
                     unique_values_per_attribute[attribute] = np.unique(attribute_data)
-                    node_mi = metrics.mutual_info_score(attribute_data, node.partial_y)
-                    total_node_mi += node_mi
+                    node_mi = calc_MI(attribute_data, node.partial_y, total_records)
                     statistic = 2 * np.log(2) * total_records * node_mi
-                    critical = stats.chi2.ppf(self.alpha, 1)
+                    critical = stats.chi2.ppf(self.alpha, ((num_of_classes - 1) *
+                                                           ((len(unique_values_per_attribute[attribute])) - 1)
+                                                           ))
                     if critical < statistic:
                         node_info_tuple = (node.index, node_mi)
                     else:
@@ -134,25 +172,28 @@ class IfnClassifier():
 
             chosen_attribute = chosen_index
 
-
-
             # stop building the network if all layer's nodes are terminal
             if chosen_attribute == -1:
                 break
 
             # set terminal nodes
             for node_tuple in nodes_info_per_attribute[chosen_attribute]:
-                if node_tuple[1] != 0:  # means chi2 test didnt pass
+                if node_tuple[1] == 0:  # means chi2 test didnt pass
                     node = current_layer.get_node(node_tuple[0])
                     if node is not None:
                         node.set_terminal()
                         # add weight
 
-            nodes_list = []
-            for i in unique_values_per_attribute[chosen_attribute]:
-                x_y_tuple = drop_records(current_layer.get_node(i).partial_x,
-                                         chosen_attribute, current_layer.get_node(i).partial_y, i)
-                nodes_list.append(AttributeNode(i, chosen_attribute, x_y_tuple[0], x_y_tuple[1]))
+            for curr_layer_node in current_layer.nodes:
+                if not curr_layer_node.is_terminal:
+                    nodes_list = []
+                    for i in unique_values_per_attribute[chosen_attribute]:
+                        x_y_tuple = drop_records(curr_layer_node.partial_x,
+                                                 chosen_attribute, curr_layer_node.partial_y, i)
+                        nodes_list.append(AttributeNode(curr_node_index, curr_layer_node.index,
+                                                        chosen_attribute, x_y_tuple[0], x_y_tuple[1]))
+                        curr_node_index += 1
+
             updated_attributes_array.remove(chosen_attribute)
             new_layer = HiddenLayer(chosen_attribute)
             current_layer.next_layer = new_layer
@@ -164,7 +205,8 @@ class IfnClassifier():
             current_layer.print()
 
         # that means we used all of the attributes so we have to set the last layer's nodes to be terminal
-        if len(updated_attributes_array) == 0:
+        # or all nodes in current layer are terminal
+        if len(updated_attributes_array) == 0 or chosen_attribute == -1:
             for node in current_layer.nodes:
                 node.set_terminal()
                 node.print_info()
@@ -173,22 +215,6 @@ class IfnClassifier():
 
         # `fit` should always return `self`
         return self
-
-
-
-
-
-    def calIMPerNode(self, X, y):
-        attributes_mi = {}
-
-        for attribute in self.updated_attributes_array:
-            attribute_data = []
-            for record in X:
-                attribute_data.append(record[attribute])
-            attributes_mi[attribute] = metrics.adjusted_mutual_info_score(attribute_data, y)
-        return attributes_mi
-
-
 
     def predict(self, X):
         """ A reference implementation of a predicting function.

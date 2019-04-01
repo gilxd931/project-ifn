@@ -28,7 +28,7 @@ class AttributeNode(Node):
         self.prev_node = prev_node
         self.layer = layer
         self.is_terminal = is_terminal
-        self.weight = math.inf
+        self.weight = {}
         self.partial_x = partial_x
         self.partial_y = partial_y
 

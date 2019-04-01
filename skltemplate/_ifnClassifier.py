@@ -41,6 +41,16 @@ def calc_MI(x, y, total_records):
     return total_mi
 
 
+def calc_weight(y, class_count, total_records):
+    weight_per_class = {}
+    for class_info in class_count:
+        # partial_y = np.extract(y, np.where(y == [class_info[0]]), axis=0)
+        cut_len = len(np.extract(y == [class_info[0]], y))
+        weight = (cut_len / total_records) * (math.log((cut_len / len(y)) / (class_info[1] / total_records), 2))
+        weight_per_class[class_info[0]] = weight
+
+    return weight_per_class
+
 def drop_records(X, atr_index, y, node_index):
     new_x = []
     new_y = []
@@ -182,7 +192,9 @@ class IfnClassifier():
                     node = current_layer.get_node(node_tuple[0])
                     if node is not None:
                         node.set_terminal()
-                        # add weight
+                        # add weight to terminal node
+                        node.set_weight(calc_weight(node.partial_y, class_count, total_records))
+
 
             for curr_layer_node in current_layer.nodes:
                 if not curr_layer_node.is_terminal:
@@ -210,10 +222,11 @@ class IfnClassifier():
             for node in current_layer.nodes:
                 node.set_terminal()
                 node.print_info()
-                # set node weight
-
+                # add weight to terminal node
+                node.set_weight(calc_weight(node.partial_y, class_count, total_records))
 
         # `fit` should always return `self`
+        is_fitted_ = True
         return self
 
     def predict(self, X):

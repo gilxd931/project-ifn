@@ -23,28 +23,22 @@ class ClassNode(Node):
 
 
 class AttributeNode(Node):
-    def __init__(self, index, prev_node, layer, partial_x, partial_y, is_terminal=False):
+    def __init__(self, index, inner_index, prev_node, layer, partial_x, partial_y, is_terminal=False):
         super().__init__(index)
+        self.inner_index = inner_index
         self.prev_node = prev_node
         self.layer = layer
         self.is_terminal = is_terminal
-        self.weight = {}
+        self.weight_probability_pair = {}
         self.partial_x = partial_x
         self.partial_y = partial_y
 
     def set_terminal(self):
         self.is_terminal = True
 
-    def set_weight(self, weight):
+    def set_weight_probability_pair(self, weight_probability_pair):
         if self.is_terminal:
-            self.weight = weight
-
-    def print_info(self):
-        print('')
-        print('terminal: ' + str(self.is_terminal))
-        print('weight: ' + str(self.weight))
-        print('index: ' + str(self.index))
-        print('------------------------')
+            self.weight_probability_pair = weight_probability_pair
 
 
 class HiddenLayer:

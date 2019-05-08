@@ -1,7 +1,6 @@
-.. -*- mode: rst -*-
 
 
-## Info Fuzzy Network Algorithm ##
+ Info Fuzzy Network Algorithm 
 ============================================================
 
 This project hosts Python implementations of the Info fuzzy network(IFN) algorithm.

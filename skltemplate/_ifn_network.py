@@ -4,9 +4,6 @@ class Node:
     def __init__(self, index):
         self.index = index
 
-    def print_index(self):
-        print(self.index)
-
 
 class RootNode(Node):
     def __init__(self):
@@ -46,13 +43,11 @@ class HiddenLayer:
         self.index = index
         self.next_layer = None
         self.nodes = None
+        self.is_continuous = False
 
     def set_nodes(self, nodes):
         self.nodes = nodes
 
-    def print(self):
-        for node in self.nodes:
-            node.print_index()
 
     def get_node(self, index):
         for node in self.nodes:
@@ -71,10 +66,23 @@ class IfnNetwork:
             for i in num_of_classes:
                 self.target_layer.append(ClassNode(i))
 
-    def print_classes(self):
-        for node in self.target_layer:
-            node.print_index()
+    def create_network_structure_file(self):
+        f = open("network_structure_py.txt", "w+")
+        f.write("Network Structure:" + "\n\n")
 
-
-
+        curr_layer = self.root_node.first_layer
+        first_line = "0"
+        for node in curr_layer.nodes:
+            first_line = first_line + " " + str(node.index)
+        f.write(first_line + "\n")
+        while curr_layer.next_layer is not None:
+            for curr_node in curr_layer.nodes:
+                curr_line = str(curr_node.index)
+                for next_node in curr_layer.next_layer.nodes:
+                    if next_node.prev_node == curr_node.index:
+                        curr_line = curr_line + " " + str(next_node.index)
+                if ' ' in curr_line:
+                    f.write(curr_line + "\n")
+            curr_layer = curr_layer.next_layer
+        f.close()
 

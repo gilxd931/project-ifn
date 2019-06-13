@@ -542,7 +542,7 @@ class IfnClassifier():
                             found_terminal_node = True
                             weights_of_node = []
                             for class_index, weight_prob_pair in chosen_node.weight_probability_pair.items():
-                                weights_of_node.append((weight_prob_pair[1]))
+                                weights_of_node.append((round(weight_prob_pair[1], 3)))
                             predicted.append(weights_of_node)
                         else:
                             curr_layer = curr_layer.next_layer

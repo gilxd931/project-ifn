@@ -10,6 +10,7 @@ from scipy import stats
 import math
 import collections
 import time
+import sys
 
 
 def calc_MI(x, y, total_records):
@@ -197,7 +198,11 @@ class IfnClassifier():
                     attributes_mi[attribute] = 0
 
         chosen_attribute = max(attributes_mi, key=attributes_mi.get)
+        if attributes_mi[chosen_attribute] == 0:
+            print('No Nodes at the network. choose smaller alpha')
+            sys.exit()
         updated_attributes_array.remove(chosen_attribute)
+
 
         f.write('first layer attribute: \n')
         for index, mi in attributes_mi.items():
@@ -733,7 +738,3 @@ def find_split_position(record, positions):
         second_position = positions[i+1]
         if first_position <= record < second_position:
             return i+1
-
-
-
-

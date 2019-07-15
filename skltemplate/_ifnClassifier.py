@@ -95,7 +95,7 @@ class IfnClassifier():
             raise ValueError("Enter a valid alpha between 0 to 1")
         self.network = IfnNetwork()
 
-    def fit(self, X, y):
+    def fit(self, X, y, cols):
         """A reference implementation of a fitting function.
 
         Parameters
@@ -115,7 +115,7 @@ class IfnClassifier():
         f.write('Output data for dataset: \n\n')
 
         X, y = check_X_y(X, y, accept_sparse=True)
-
+        print('Building the network...')
         global total_records
         global all_nodes_continuous_atts_data
         global attribute_node_mi_data
@@ -141,7 +141,7 @@ class IfnClassifier():
 
         f.write('Total instances: ' + str(total_records) + '\n')
         f.write('Number of candidate input attributes is: ' + str(len(updated_attributes_array)) + '\n')
-        f.write('Minimum confidence level is: ' +str( self.alpha ) + '\n\n')
+        f.write('Minimum confidence level is: ' +str( self.alpha) + '\n\n')
         num_of_classes = len(np.unique(y))
 
         if num_of_classes == 2:
@@ -203,7 +203,10 @@ class IfnClassifier():
         for index, mi in attributes_mi.items():
             f.write(str(index) + ': ' + str(round(mi, 3)) + '\n')
 
-        f.write('\nChosen attribute is: ' + str(chosen_attribute) + '\n\n')
+        if chosen_attribute != -1:
+            f.write('\nChosen attribute is: ' + cols[chosen_attribute] + "(" + str(chosen_attribute) + ")" + '\n\n')
+        else:
+            f.write('\nChosen attribute is: None' + "(" + str(chosen_attribute) + ")" + '\n\n')
 
         # will need it for future calculations
         current_unique_values_per_attribute = unique_values_per_attribute.copy()
@@ -384,7 +387,10 @@ class IfnClassifier():
                 curr_mi = sum(mi[1] for mi in mi_list)
                 f.write(str(index) + ': ' + str(round(curr_mi, 3)) + '\n')
 
-            f.write('\nchosen attribte is: ' + str(chosen_attribute) + '\n\n')
+            if chosen_attribute != -1:
+                f.write('\nChosen attribute is: ' + cols[chosen_attribute] + "(" + str(chosen_attribute) + ")" + '\n\n')
+            else:
+                f.write('\nChosen attribute is: None' + "(" + str(chosen_attribute) + ")" + '\n\n')
 
             # stop building the network if all layer's nodes are terminal
             if chosen_attribute == -1:
@@ -466,6 +472,7 @@ class IfnClassifier():
 
         # `fit` should always return `self`
         self.is_fitted_ = True
+        print("Done. Network is fitted")
         return self
 
     def predict(self, X):
@@ -509,6 +516,12 @@ class IfnClassifier():
                             prev_node_index = chosen_node.index
                         break
 
+        index = 1
+        with open('predict.txt', 'w') as f:
+            for row in predicted:
+                f.write(str(index) + '. ' + str(row) + '\n')
+                index += 1
+
         return np.array(predicted)
 
     def predict_proba(self, X):
@@ -548,6 +561,12 @@ class IfnClassifier():
                             curr_layer = curr_layer.next_layer
                             prev_node_index = chosen_node.index
                         break
+
+        index = 1
+        with open('predict.txt', 'w') as f:
+            for row in predicted:
+                f.write(str(index) + '. ' + str(row) + '\n')
+                index += 1
 
         return np.array(predicted)
 

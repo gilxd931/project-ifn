@@ -14,3 +14,13 @@ class CsvConverter:
             x.append(record)
 
         return x, y, cols
+
+    @staticmethod
+    def convert_predict(csv_file_path):
+        df = pd.read_csv(csv_file_path)
+        x = []
+        for index, row in df.iterrows():
+            record = [elem for elem in row]
+            x.append(record)
+
+        return x

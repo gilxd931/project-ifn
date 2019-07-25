@@ -12,9 +12,11 @@ This project hosts Python implementations of the Info fuzzy network(IFN) algorit
 * scikit-learn
 
 ## How to use ##
-Download, import and do as you would with any other scikit-learn method:
-* fit(X, y)
-* transform(X)
+1. Use CsvConverter.convert to read data from a csv file- last column should call "Class" and represents the classes.
+2. create IfnClassifier instance with alpha value as parameter 
+3. use fit to build the network. Params - (data, classes, column names)
+4. use add_training_set_error_rate to add error rate to file. Params - (data, classes)
+5. use create_network_structure_file to create network structure file.
 
 ## Description ##
 
